@@ -29,6 +29,8 @@ TOOLSUBDIRS = kernel-doc
 #
 include $(TOPDIR)/config.mk
 
+include $(TOPDIR)/tools/logos/charge/charge.mk
+
 #
 # toolchains targeting win32 generate .exe files
 #
@@ -60,6 +62,7 @@ ENVCRC-$(CONFIG_ENV_IS_IN_SPI_FLASH) = y
 CONFIG_BUILD_ENVCRC ?= $(ENVCRC-y)
 
 # Generated executable files
+BIN_FILES-$(CONFIG_CMD_CHARGE_ANIM) += bmp_image$(SFX)
 BIN_FILES-$(CONFIG_LCD_LOGO) += bmp_logo$(SFX)
 BIN_FILES-$(CONFIG_VIDEO_LOGO) += bmp_logo$(SFX)
 BIN_FILES-$(CONFIG_BUILD_ENVCRC) += envcrc$(SFX)
@@ -83,6 +86,7 @@ EXT_OBJ_FILES-y += lib/md5.o
 EXT_OBJ_FILES-y += lib/sha1.o
 
 # Source files located in the tools directory
+OBJ_FILES-$(CONFIG_CMD_CHARGE_ANIM) += bmp_image.o
 OBJ_FILES-$(CONFIG_LCD_LOGO) += bmp_logo.o
 OBJ_FILES-$(CONFIG_VIDEO_LOGO) += bmp_logo.o
 NOPED_OBJ_FILES-y += default_image.o
@@ -128,27 +132,13 @@ LOGO-$(CONFIG_LCD_LOGO) += $(LOGO_DATA_H)
 LOGO-$(CONFIG_VIDEO_LOGO) += $(LOGO_H)
 LOGO-$(CONFIG_VIDEO_LOGO) += $(LOGO_DATA_H)
 
-ifeq ($(LOGO_BMP),)
-LOGO_BMP= logos/denx.bmp
-endif
-ifeq ($(VENDOR),atmel)
-LOGO_BMP= logos/atmel.bmp
-endif
-ifeq ($(VENDOR),esd)
-LOGO_BMP= logos/esd.bmp
-endif
-ifeq ($(VENDOR),freescale)
-LOGO_BMP= logos/freescale.bmp
-endif
-ifeq ($(VENDOR),ronetix)
-LOGO_BMP= logos/ronetix.bmp
-endif
-ifeq ($(VENDOR),syteco)
-LOGO_BMP= logos/syteco.bmp
-endif
-ifeq ($(VENDOR),intercontrol)
-LOGO_BMP= logos/intercontrol.bmp
-endif
+LOGO_BMP= logos/tost7t.bmp
+
+# Generated bmp image
+BMP_IMAGE_DATA_H = $(OBJTREE)/include/bmp_image_data.h
+LOGO-$(CONFIG_CMD_CHARGE_ANIM) += $(BMP_IMAGE_DATA_H)
+BMP_IMAGE_IMG= ../images.img
+LOGO-$(CONFIG_CMD_CHARGE_ANIM) += $(BMP_IMAGE_IMG)
 
 # now $(obj) is defined
 HOSTSRCS += $(addprefix $(SRCTREE)/,$(EXT_OBJ_FILES-y:.o=.c))
@@ -173,6 +163,13 @@ HOSTCPPFLAGS =	-idirafter $(SRCTREE)/include \
 		-DUSE_HOSTCC \
 		-D__KERNEL_STRICT_NAMES
 
+ifneq ($(CONFIG_COMPRESS_LOGO_RLE16),)
+HOSTCFLAGS += -DCOMPRESS_RLE16
+else
+ifneq ($(CONFIG_COMPRESS_LOGO_RLE8),)
+HOSTCFLAGS += -DCOMPRESS_RLE8
+endif
+endif
 
 all:	$(obj).depend $(BINS) $(LOGO-y) subdirs
 
@@ -181,6 +178,10 @@ $(obj)bin2header$(SFX): $(obj)bin2header.o
 	$(HOSTSTRIP) $@
 
 $(obj)bmp_logo$(SFX):	$(obj)bmp_logo.o
+	$(HOSTCC) $(HOSTCFLAGS) $(HOSTLDFLAGS) -o $@ $^
+	$(HOSTSTRIP) $@
+
+$(obj)bmp_image$(SFX):   $(obj)bmp_image.o
 	$(HOSTCC) $(HOSTCFLAGS) $(HOSTLDFLAGS) -o $@ $^
 	$(HOSTSTRIP) $@
 
@@ -267,11 +268,16 @@ else
 	done
 endif
 
-$(LOGO_H):	$(obj)bmp_logo $(LOGO_BMP)
+$(LOGO_H):	$(obj)bmp_logo $(LOGO_BMP) $(SRCTREE)/tools/Makefile
 	$(obj)./bmp_logo --gen-info $(LOGO_BMP) > $@
 
-$(LOGO_DATA_H):	$(obj)bmp_logo $(LOGO_BMP)
+$(LOGO_DATA_H):	$(obj)bmp_logo $(LOGO_BMP) $(SRCTREE)/tools/Makefile
 	$(obj)./bmp_logo --gen-data $(LOGO_BMP) > $@
+
+$(BMP_IMAGE_IMG): $(BMP_IMAGE_DATA_H)
+
+$(BMP_IMAGE_DATA_H): $(obj)bmp_image $(SRCTREE)/tools/Makefile
+	$(obj)./bmp_image $(BMP_IMAGE_IMG) $(BMP_IMAGES) > $@
 
 #########################################################################
 

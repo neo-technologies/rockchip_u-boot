@@ -348,7 +348,21 @@ static void process_fdt_options(const void *blob)
 
 
 /****************************************************************************/
+#ifdef CONFIG_ROCKCHIP
+void main_loop (void)
+{
+    char *p;
+    if ((p = getenv ("preboot")) != NULL) {
+        run_command_list(p, -1, 0);
+    }
+    run_command_list(CONFIG_BOOTCOMMAND, -1, 0);
 
+    /* Should not reach here. */
+    printf("failed to boot, start rockusb\n");
+    startRockusb();
+}
+
+#else //CONFIG_ROCKCHIP
 void main_loop (void)
 {
 #ifndef CONFIG_SYS_HUSH_PARSER
@@ -552,6 +566,7 @@ void main_loop (void)
 	}
 #endif /*CONFIG_SYS_HUSH_PARSER*/
 }
+#endif // CONFIG_ROCKCHIP
 
 #ifdef CONFIG_BOOT_RETRY_TIME
 /***************************************************************************
@@ -1389,7 +1404,9 @@ static int builtin_run_command(const char *cmd, int flag)
 	puts ("\"\n");
 #endif
 
+#ifdef CONFIG_CTRLC
 	clear_ctrlc();		/* forget any previous Control C */
+#endif //CONFIG_CTRLC
 
 	if (!cmd || !*cmd) {
 		return -1;	/* empty command */
@@ -1453,9 +1470,11 @@ static int builtin_run_command(const char *cmd, int flag)
 		if (cmd_process(flag, argc, argv, &repeatable, NULL))
 			rc = -1;
 
+#ifdef CONFIG_CTRLC
 		/* Did the user stop this? */
 		if (had_ctrlc ())
 			return -1;	/* if stopped then not repeatable */
+#endif
 	}
 
 	return rc ? rc : repeatable;
