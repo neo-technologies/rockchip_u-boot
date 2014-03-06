@@ -78,3 +78,6 @@ cscope.*
 
 # spl ais files
 /spl/*.ais
+
+# Generated bmp image
+/images.img
